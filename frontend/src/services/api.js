@@ -9,17 +9,46 @@ const api = axios.create({
   },
 });
 
+// Add request interceptor
+api.interceptors.request.use((config) => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (user?.token) {
+    config.headers.Authorization = `Bearer ${user.token}`;
+  }
+  return config;
+});
+
+// Add response interceptor
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export const authApi = {
+  register: (data) => api.post('/auth/register', data),
+  login: (data) => api.post('/auth/login', data),
+  getProfile: () => api.get('/auth/profile'),
+};
+
 export const inventoryApi = {
   getAll: () => api.get('/inventory'),
   create: (data) => api.post('/inventory', data),
   update: (id, data) => api.put(`/inventory/${id}`, data),
   delete: (id) => api.delete(`/inventory/${id}`),
-  exportCsv: () => api.get('/inventory/export', { responseType: 'blob' }),
+  exportCsv: () => api.get('/inventory/export'),
   importCsv: (file) => {
     const formData = new FormData();
     formData.append('file', file);
     return api.post('/inventory/import', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
   },
 };

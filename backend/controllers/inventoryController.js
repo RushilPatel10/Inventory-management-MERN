@@ -44,6 +44,38 @@ exports.deleteItem = async (req, res) => {
   }
 };
 
+exports.importCsv = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Please upload a CSV file' });
+    }
+
+    const items = [];
+    fs.createReadStream(req.file.path)
+      .pipe(csv.parse({ headers: true }))
+      .on('data', (row) => {
+        items.push({
+          name: row.name,
+          quantity: parseInt(row.quantity),
+          category: row.category,
+          lowStockThreshold: parseInt(row.lowStockThreshold),
+          supplier: row.supplier
+        });
+      })
+      .on('end', async () => {
+        try {
+          await Inventory.insertMany(items);
+          fs.unlinkSync(req.file.path);
+          res.json({ message: 'CSV imported successfully' });
+        } catch (error) {
+          res.status(500).json({ message: error.message });
+        }
+      });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.exportCsv = async (req, res) => {
   try {
     const items = await Inventory.find().populate('supplier');
