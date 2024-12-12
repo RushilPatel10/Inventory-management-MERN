@@ -66,3 +66,10 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* Override Toastify SVG styles */
+.Toastify__toast-icon svg {
+  fill: currentColor;
+  width: 20px;
+  height: 20px;
+}

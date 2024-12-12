@@ -1,6 +1,7 @@
 const Inventory = require('../models/Inventory');
 const csv = require('fast-csv');
 const fs = require('fs');
+const path = require('path');
 
 exports.getAllItems = async (req, res) => {
   try {
@@ -51,26 +52,55 @@ exports.importCsv = async (req, res) => {
     }
 
     const items = [];
-    fs.createReadStream(req.file.path)
-      .pipe(csv.parse({ headers: true }))
-      .on('data', (row) => {
-        items.push({
-          name: row.name,
-          quantity: parseInt(row.quantity),
-          category: row.category,
-          lowStockThreshold: parseInt(row.lowStockThreshold),
-          supplier: row.supplier
+    const errors = [];
+    let rowNumber = 1;
+
+    await new Promise((resolve, reject) => {
+      fs.createReadStream(req.file.path)
+        .pipe(csv.parse({ headers: true }))
+        .on('data', (row) => {
+          rowNumber++;
+          try {
+            items.push({
+              name: row.name,
+              quantity: parseInt(row.quantity),
+              category: row.category,
+              lowStockThreshold: parseInt(row.lowStockThreshold),
+              supplier: row.supplierId
+            });
+          } catch (error) {
+            errors.push(`Error in row ${rowNumber}: ${error.message}`);
+          }
+        })
+        .on('end', async () => {
+          try {
+            if (errors.length > 0) {
+              reject(new Error(errors.join('\n')));
+              return;
+            }
+
+            // Validate all items before inserting
+            const validationErrors = items
+              .map((item, index) => {
+                if (!item.name) return `Row ${index + 2}: Name is required`;
+                if (isNaN(item.quantity)) return `Row ${index + 2}: Invalid quantity`;
+                if (!item.category) return `Row ${index + 2}: Category is required`;
+                if (isNaN(item.lowStockThreshold)) return `Row ${index + 2}: Invalid threshold`;
+                return null;
+              })
+              .filter(error => error !== null);
+
+            if (validationErrors.length > 0) {
+              reject(new Error(validationErrors.join('\n')));
+              return;
+            }
+
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
         });
-      })
-      .on('end', async () => {
-        try {
-          await Inventory.insertMany(items);
-          fs.unlinkSync(req.file.path);
-          res.json({ message: 'CSV imported successfully' });
-        } catch (error) {
-          res.status(500).json({ message: error.message });
-        }
-      });
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -79,30 +109,41 @@ exports.importCsv = async (req, res) => {
 exports.exportCsv = async (req, res) => {
   try {
     const items = await Inventory.find().populate('supplier');
-    const csvStream = csv.format({ headers: true });
-    const writableStream = fs.createWriteStream('export.csv');
+    
+    // Create CSV data
+    const csvData = items.map(item => ({
+      name: item.name,
+      quantity: item.quantity,
+      category: item.category,
+      lowStockThreshold: item.lowStockThreshold,
+      supplier: item.supplier?.name || '',
+      supplierId: item.supplier?._id || ''
+    }));
 
-    csvStream.pipe(writableStream);
-    items.forEach((item) => {
-      csvStream.write({
-        name: item.name,
-        quantity: item.quantity,
-        category: item.category,
-        supplier: item.supplier?.name || '',
-        lowStockThreshold: item.lowStockThreshold
-      });
-    });
-    csvStream.end();
+    // Create temp directory if it doesn't exist
+    const tempDir = path.join(__dirname, '../temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir);
+    }
 
-    writableStream.on('finish', () => {
-      res.download('export.csv', 'inventory.csv', (err) => {
-        if (err) {
-          res.status(500).json({ message: err.message });
-        }
-        fs.unlinkSync('export.csv');
+    const filename = path.join(tempDir, `inventory-${Date.now()}.csv`);
+    
+    // Write CSV file
+    const ws = fs.createWriteStream(filename);
+    csv.write(csvData, { headers: true })
+      .pipe(ws)
+      .on('finish', () => {
+        res.download(filename, 'inventory.csv', (err) => {
+          // Delete temp file after download
+          fs.unlinkSync(filename);
+          if (err) {
+            console.error('Download error:', err);
+            res.status(500).json({ message: 'Error downloading file' });
+          }
+        });
       });
-    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Export error:', error);
+    res.status(500).json({ message: 'Error exporting data' });
   }
 }; 

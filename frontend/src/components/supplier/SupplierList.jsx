@@ -22,6 +22,9 @@ import {
   Email,
   LocationOn,
   Business,
+  CheckCircle,
+  Cancel,
+  Warning,
 } from '@mui/icons-material';
 
 function SupplierList({ suppliers, onEdit, onDelete }) {
@@ -35,6 +38,36 @@ function SupplierList({ suppliers, onEdit, onDelete }) {
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+  };
+
+  const StatusChip = ({ status }) => {
+    let icon = null;
+    let color = 'default';
+    let label = status;
+
+    switch (status.toLowerCase()) {
+      case 'active':
+        icon = <CheckCircle fontSize="small" />;
+        color = 'success';
+        break;
+      case 'inactive':
+        icon = <Cancel fontSize="small" />;
+        color = 'error';
+        break;
+      default:
+        icon = <Warning fontSize="small" />;
+        color = 'warning';
+    }
+
+    return (
+      <Chip
+        icon={icon}
+        label={label}
+        size="small"
+        color={color}
+        sx={{ minWidth: 80 }}
+      />
+    );
   };
 
   return (
@@ -91,12 +124,7 @@ function SupplierList({ suppliers, onEdit, onDelete }) {
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      size="small"
-                      label="Active"
-                      color="success"
-                      sx={{ minWidth: 80 }}
-                    />
+                    <StatusChip status="Active" />
                   </TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>

@@ -1,99 +1,123 @@
-import { useState, useEffect } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
+import { useState } from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Paper,
-  IconButton 
+  IconButton,
+  Typography,
+  Box,
+  TablePagination,
+  Tooltip,
 } from '@mui/material';
 import { Edit, Delete } from '@mui/icons-material';
-import { inventoryApi } from '../../services/api';
 import StockIndicator from './StockIndicator';
-import ConfirmDialog from '../shared/ConfirmDialog';
 
-function InventoryList({ onEdit, onDelete }) {
-  const [items, setItems] = useState([]);
-  const [deleteDialog, setDeleteDialog] = useState({
-    open: false,
-    itemId: null
-  });
+function InventoryList({ items = [], onEdit, onDelete }) {
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  useEffect(() => {
-    loadInventory();
-  }, []);
-
-  const loadInventory = async () => {
-    try {
-      const response = await inventoryApi.getAll();
-      setItems(response.data);
-    } catch (error) {
-      console.error('Error loading inventory:', error);
-    }
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
   };
 
-  const handleDeleteClick = (itemId) => {
-    setDeleteDialog({
-      open: true,
-      itemId
-    });
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
   };
 
-  const handleDeleteConfirm = () => {
-    if (deleteDialog.itemId) {
-      onDelete(deleteDialog.itemId);
-    }
-    setDeleteDialog({ open: false, itemId: null });
-  };
+  // Calculate the current page's items
+  const currentItems = items.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
 
   return (
-    <>
-      <TableContainer component={Paper}>
-        <Table>
+    <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+      <TableContainer sx={{ maxHeight: 440 }}>
+        <Table stickyHeader aria-label="inventory table">
           <TableHead>
             <TableRow>
-              <TableCell>Item Name</TableCell>
-              <TableCell>Quantity</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell align="right">Quantity</TableCell>
               <TableCell>Category</TableCell>
               <TableCell>Supplier</TableCell>
-              <TableCell>Stock Level</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {items.map((item) => (
-              <TableRow key={item._id}>
-                <TableCell>{item.name}</TableCell>
-                <TableCell>{item.quantity}</TableCell>
-                <TableCell>{item.category}</TableCell>
-                <TableCell>{item.supplier?.name}</TableCell>
+            {currentItems.map((item) => (
+              <TableRow key={item._id} hover>
                 <TableCell>
-                  <StockIndicator quantity={item.quantity} threshold={item.lowStockThreshold} />
+                  <Typography variant="body1">{item.name}</Typography>
+                </TableCell>
+                <TableCell align="right">
+                  <Typography variant="body1">{item.quantity}</Typography>
                 </TableCell>
                 <TableCell>
-                  <IconButton onClick={() => onEdit(item)}>
-                    <Edit />
-                  </IconButton>
-                  <IconButton onClick={() => handleDeleteClick(item._id)}>
-                    <Delete />
-                  </IconButton>
+                  <Typography variant="body1">{item.category}</Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body1">
+                    {item.supplier?.name || 'N/A'}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <StockIndicator
+                    quantity={item.quantity}
+                    threshold={item.lowStockThreshold}
+                  />
+                </TableCell>
+                <TableCell align="right">
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                    <Tooltip title="Edit">
+                      <IconButton
+                        size="small"
+                        onClick={() => onEdit(item)}
+                        sx={{ color: 'primary.main' }}
+                      >
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                      <IconButton
+                        size="small"
+                        onClick={() => onDelete(item._id)}
+                        sx={{ color: 'error.main' }}
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
                 </TableCell>
               </TableRow>
             ))}
+            {currentItems.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} align="center">
+                  <Typography variant="body1" sx={{ py: 2 }}>
+                    No items found
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </TableContainer>
-
-      <ConfirmDialog
-        open={deleteDialog.open}
-        onClose={() => setDeleteDialog({ open: false, itemId: null })}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Item"
-        message="Are you sure you want to delete this item? This action cannot be undone."
+      <TablePagination
+        component="div"
+        count={items.length}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        rowsPerPageOptions={[5, 10, 25]}
       />
-    </>
+    </Paper>
   );
 }
 

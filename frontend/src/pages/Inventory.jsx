@@ -12,6 +12,7 @@ import InventoryList from '../components/inventory/InventoryList';
 import InventoryForm from '../components/inventory/InventoryForm';
 import { inventoryApi, supplierApi } from '../services/api';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
+import ConfirmDialog from '../components/shared/ConfirmDialog';
 import CsvOperations from '../components/inventory/CsvOperations';
 
 function Inventory() {
@@ -20,6 +21,7 @@ function Inventory() {
   const [loading, setLoading] = useState(true);
   const [openForm, setOpenForm] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null });
 
   useEffect(() => {
     loadData();
@@ -27,6 +29,7 @@ function Inventory() {
 
   const loadData = async () => {
     try {
+      setLoading(true);
       const [inventoryRes, suppliersRes] = await Promise.all([
         inventoryApi.getAll(),
         supplierApi.getAll()
@@ -42,14 +45,24 @@ function Inventory() {
 
   const handleSubmit = async (formData) => {
     try {
+      let updatedItem;
       if (selectedItem) {
-        await inventoryApi.update(selectedItem._id, formData);
+        const response = await inventoryApi.update(selectedItem._id, formData);
+        updatedItem = response.data;
+        // Update the items array immediately
+        setItems(prevItems => 
+          prevItems.map(item => 
+            item._id === selectedItem._id ? updatedItem : item
+          )
+        );
         toast.success('Item updated successfully');
       } else {
-        await inventoryApi.create(formData);
+        const response = await inventoryApi.create(formData);
+        updatedItem = response.data;
+        // Add the new item to the items array immediately
+        setItems(prevItems => [...prevItems, updatedItem]);
         toast.success('Item added successfully');
       }
-      loadData();
       setOpenForm(false);
       setSelectedItem(null);
     } catch (error) {
@@ -62,11 +75,15 @@ function Inventory() {
     setOpenForm(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async () => {
     try {
-      await inventoryApi.delete(id);
+      await inventoryApi.delete(deleteDialog.id);
+      // Remove the item from the items array immediately
+      setItems(prevItems => 
+        prevItems.filter(item => item._id !== deleteDialog.id)
+      );
       toast.success('Item deleted successfully');
-      loadData();
+      setDeleteDialog({ open: false, id: null });
     } catch (error) {
       toast.error('Error deleting item');
     }
@@ -96,7 +113,7 @@ function Inventory() {
         <InventoryList
           items={items}
           onEdit={handleEdit}
-          onDelete={handleDelete}
+          onDelete={(id) => setDeleteDialog({ open: true, id })}
         />
 
         <InventoryForm
@@ -108,6 +125,14 @@ function Inventory() {
           onSubmit={handleSubmit}
           initialData={selectedItem}
           suppliers={suppliers}
+        />
+
+        <ConfirmDialog
+          open={deleteDialog.open}
+          onClose={() => setDeleteDialog({ open: false, id: null })}
+          onConfirm={handleDelete}
+          title="Delete Item"
+          message="Are you sure you want to delete this item? This action cannot be undone."
         />
       </Paper>
     </Container>

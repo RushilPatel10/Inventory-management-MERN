@@ -8,6 +8,9 @@ import {
   Button,
   Box,
   IconButton,
+  Grid,
+  Typography,
+  Divider,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
 
@@ -22,20 +25,27 @@ function SupplierForm({ open, onClose, onSubmit, initialData }) {
   useEffect(() => {
     if (initialData) {
       setFormData(initialData);
+    } else {
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+      });
     }
   }, [initialData]);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(formData);
-    onClose();
   };
 
   return (
@@ -47,77 +57,97 @@ function SupplierForm({ open, onClose, onSubmit, initialData }) {
       PaperProps={{
         sx: {
           borderRadius: 2,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+          position: 'relative'
         }
       }}
     >
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        bgcolor: 'primary.main',
-        color: 'white'
-      }}>
-        {initialData ? 'Edit Supplier' : 'Add New Supplier'}
-        <IconButton onClick={onClose} sx={{ color: 'white' }}>
-          <Close />
-        </IconButton>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Typography variant="h6">
+            {initialData ? 'Edit Supplier' : 'Add New Supplier'}
+          </Typography>
+          <IconButton
+            onClick={onClose}
+            size="small"
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500]
+            }}
+          >
+            <Close />
+          </IconButton>
+        </Box>
       </DialogTitle>
+      
+      <Divider />
+      
       <form onSubmit={handleSubmit}>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <TextField
-              name="name"
-              label="Supplier Name"
-              fullWidth
-              value={formData.name}
-              onChange={handleChange}
-              required
-              variant="outlined"
-            />
-            <TextField
-              name="email"
-              label="Email"
-              type="email"
-              fullWidth
-              value={formData.email}
-              onChange={handleChange}
-              required
-              variant="outlined"
-            />
-            <TextField
-              name="phone"
-              label="Phone"
-              fullWidth
-              value={formData.phone}
-              onChange={handleChange}
-              required
-              variant="outlined"
-            />
-            <TextField
-              name="address"
-              label="Address"
-              fullWidth
-              multiline
-              rows={3}
-              value={formData.address}
-              onChange={handleChange}
-              variant="outlined"
-            />
-          </Box>
+        <DialogContent sx={{ pt: 2 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                name="name"
+                label="Company Name"
+                fullWidth
+                required
+                value={formData.name}
+                onChange={handleChange}
+                autoFocus
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="email"
+                label="Email"
+                type="email"
+                fullWidth
+                required
+                value={formData.email}
+                onChange={handleChange}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="phone"
+                label="Phone Number"
+                fullWidth
+                required
+                value={formData.phone}
+                onChange={handleChange}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                name="address"
+                label="Address"
+                fullWidth
+                required
+                multiline
+                rows={3}
+                value={formData.address}
+                onChange={handleChange}
+              />
+            </Grid>
+          </Grid>
         </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
+
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
           <Button 
             onClick={onClose}
             variant="outlined"
-            sx={{ borderRadius: 2 }}
+            sx={{ borderRadius: 1 }}
           >
             Cancel
           </Button>
           <Button 
             type="submit" 
             variant="contained"
-            sx={{ borderRadius: 2 }}
+            sx={{ borderRadius: 1 }}
           >
             {initialData ? 'Update' : 'Add'} Supplier
           </Button>
